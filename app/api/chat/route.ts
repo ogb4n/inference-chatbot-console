@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,10 @@ const BASE_URL = (
 const API_KEY = process.env.INFERENCE_API_KEY ?? "";
 
 export async function POST(req: NextRequest) {
+  if (!(await getCurrentUser())) {
+    return new Response("Non authentifié", { status: 401 });
+  }
+
   let body: {
     provider?: "openai" | "ollama";
     model?: string;

@@ -97,6 +97,16 @@ body {
   font-size: 18px;
   padding: 0 8px 0 0;
 }
+.masthead__user {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+  font-weight: 500;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---------- App shell : sidebar + zone de chat ---------- */
 .layout {
@@ -586,4 +596,92 @@ body {
   font-size: 13px;
   color: var(--ink);
   margin: 0;
+}
+
+/* ---------- Page d'authentification ---------- */
+.auth {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--paper-2);
+}
+.auth__card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 36px 32px;
+  box-shadow: 0 10px 40px rgba(13, 13, 13, 0.08);
+}
+.auth__logo {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.auth__subtitle {
+  margin: 0 0 24px;
+  color: var(--grey);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.auth__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--grey);
+}
+.auth__field input {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  outline: none;
+}
+.auth__field input:focus {
+  border-color: var(--black);
+}
+.auth__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--accent);
+}
+.auth__submit {
+  margin-top: 4px;
+  width: 100%;
+  justify-content: center;
+}
+.auth__toggle {
+  margin: 20px 0 0;
+  font-size: 14px;
+  color: var(--grey);
+  text-align: center;
+}
+.auth__toggle button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.auth__toggle button:hover {
+  text-decoration: underline;
 }

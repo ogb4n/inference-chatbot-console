@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +12,10 @@ const BASE_URL = (
 const API_KEY = process.env.INFERENCE_API_KEY ?? "";
 
 export async function GET(req: NextRequest) {
+  if (!(await getCurrentUser())) {
+    return new Response("Non authentifié", { status: 401 });
+  }
+
   const provider = req.nextUrl.searchParams.get("provider") ?? "ollama";
   const path = provider === "ollama" ? "/api/tags" : "/v1/models";
 

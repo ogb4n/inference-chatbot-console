@@ -12,6 +12,12 @@ next-env.d.ts
 # production
 /dist
 
+# base de données locale
+/data
+*.db
+*.db-shm
+*.db-wal
+
 # environnement
 .env
 .env*.local

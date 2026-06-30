@@ -21,9 +21,12 @@ réel** (streaming), réglages configurables directement depuis l'interface.
 
 ## Fonctionnalités
 
+- 🔐 **Authentification** : inscription / connexion, mots de passe hachés
+  (bcrypt), sessions JWT en cookie httpOnly, routes protégées par middleware
 - 💬 Interface de chat épurée et responsive
-- 🗂️ **Historique multi-conversations** : barre latérale pour créer, reprendre
-  et supprimer des conversations (persistées en localStorage, titre auto)
+- 🗂️ **Historique multi-conversations lié au compte** : barre latérale pour
+  créer, reprendre et supprimer des conversations (stockées **côté serveur**,
+  synchronisées entre appareils, titre auto)
 - ⚡ **Streaming temps réel** des réponses (token par token)
 - 🔌 Deux protocoles supportés :
   - **Ollama natif** (`/api/chat`, NDJSON)
@@ -89,6 +92,8 @@ L'URL et la clé du serveur sont des **variables d'environnement serveur**
 |---|---|---|
 | `INFERENCE_BASE_URL` | URL du serveur **vue depuis le conteneur** | `http://host.docker.internal:11434` |
 | `INFERENCE_API_KEY` | Clé envoyée en header `X-API-Key` | `clef-equipe-devweb` |
+| `AUTH_SECRET` | Secret de signature des sessions (**obligatoire**) | `openssl rand -hex 32` |
+| `COOKIE_SECURE` | `true` seulement derrière HTTPS | `false` |
 
 Le **protocole** (Ollama / OpenAI) et le **modèle** se choisissent dans l'UI via
 **⚙ Réglages** (avec détection automatique des modèles disponibles).
@@ -109,10 +114,13 @@ docker compose up -d --build
 ```
 app/
   api/
+    auth/           # register / login / logout / me
     chat/route.ts   # PROXY serveur : injecte X-API-Key, relaie le flux
     models/route.ts # proxy liste des modèles
+    conversations/  # CRUD des conversations (par utilisateur)
+  login/page.tsx    # page de connexion / inscription
   layout.tsx        # layout racine + polices + métadonnées
-  page.tsx          # point d'entrée
+  page.tsx          # point d'entrée (chat, protégé)
   globals.css       # design system (CSS maison)
 components/
   Chat.tsx          # chat, navbar, gestion des conversations
@@ -120,13 +128,29 @@ components/
   Settings.tsx      # panneau de configuration (protocole / modèle)
 lib/
   api.ts            # couche API client (parse SSE OpenAI + NDJSON Ollama)
+  auth.ts           # hachage bcrypt + sessions JWT (jose) + cookies
+  db.ts             # base SQLite (better-sqlite3)
   config.ts         # types + persistance de la config UI
-  conversations.ts  # stockage des conversations (localStorage)
+  conversations.ts  # accès API des conversations
   types.ts          # types partagés
+middleware.ts       # protège les pages (redirige vers /login)
 Dockerfile          # build multi-étapes (Next.js standalone)
-docker-compose.yml  # service web (+ Ollama optionnel)
-.env.example        # variables serveur (URL + clé d'API)
+docker-compose.yml  # service web + volume base de données
+.env.example        # variables serveur (inférence + auth)
 ```
+
+## Authentification
+
+- Première visite → redirection vers **/login** (création de compte possible).
+- Mots de passe **hachés (bcrypt)**, jamais stockés en clair.
+- Session = **JWT signé** (`AUTH_SECRET`) dans un cookie **httpOnly**.
+- Toutes les routes (page chat, `/api/chat`, `/api/conversations`…) exigent une
+  session valide.
+- Les conversations sont **stockées en base par utilisateur** (SQLite, dans le
+  volume Docker `app-data` → persistant entre redéploiements).
+
+> ⚠️ Définis impérativement `AUTH_SECRET` (`openssl rand -hex 32`). Sans HTTPS,
+> garde `COOKIE_SECURE=false` sinon le cookie de session ne sera pas transmis.
 
 ---
 

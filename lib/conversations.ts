@@ -1,10 +1,10 @@
 import type { ChatMessage } from "./types";
 
 /* =====================================================================
- *  STOCKAGE DES CONVERSATIONS (localStorage)
+ *  CONVERSATIONS (API serveur, liées au compte utilisateur)
  * =====================================================================
- *  Historique multi-conversations : chaque conversation conserve ses
- *  messages, un titre (déduit du 1er message) et ses horodatages.
+ *  Les conversations sont stockées côté serveur (SQLite) et accessibles
+ *  via /api/conversations. Synchronisées entre appareils.
  * ===================================================================== */
 
 export interface StoredMessage extends ChatMessage {
@@ -20,30 +20,8 @@ export interface Conversation {
   updatedAt: number;
 }
 
-const STORAGE_KEY = "inference-console-conversations";
+/* ---------- Helpers purs ---------- */
 
-export function loadConversations(): Conversation[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const list = JSON.parse(raw) as Conversation[];
-    return Array.isArray(list) ? list : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveConversations(list: Conversation[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  } catch {
-    /* quota / mode privé : on ignore */
-  }
-}
-
-/** Identifiant unique (avec repli si crypto.randomUUID indisponible). */
 function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -62,14 +40,35 @@ export function newConversation(): Conversation {
   };
 }
 
-/** Titre déduit du premier message utilisateur. */
 export function titleFrom(text: string): string {
   const clean = text.trim().replace(/\s+/g, " ");
   if (!clean) return "Nouvelle conversation";
   return clean.length > 40 ? `${clean.slice(0, 40)}…` : clean;
 }
 
-/** Conversations triées de la plus récente à la plus ancienne. */
 export function sortByRecent(list: Conversation[]): Conversation[] {
   return [...list].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/* ---------- Accès API ---------- */
+
+export async function fetchConversations(): Promise<Conversation[]> {
+  const res = await fetch("/api/conversations");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.conversations ?? []) as Conversation[];
+}
+
+export async function upsertConversation(c: Conversation): Promise<void> {
+  await fetch("/api/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(c),
+  });
+}
+
+export async function deleteConversationApi(id: string): Promise<void> {
+  await fetch(`/api/conversations?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }

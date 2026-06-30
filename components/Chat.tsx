@@ -5,11 +5,12 @@ import { callApi } from "@/lib/api";
 import { type ApiConfig, loadConfig, saveConfig } from "@/lib/config";
 import {
   type Conversation,
-  loadConversations,
+  deleteConversationApi,
+  fetchConversations,
   newConversation,
-  saveConversations,
   sortByRecent,
   titleFrom,
+  upsertConversation,
 } from "@/lib/conversations";
 import type { ChatMessage } from "@/lib/types";
 import Settings from "./Settings";
@@ -19,40 +20,41 @@ export default function Chat() {
   const [config, setConfig] = useState<ApiConfig>(loadConfig);
   const [showSettings, setShowSettings] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [email, setEmail] = useState("");
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [hydrated, setHydrated] = useState(false);
 
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const active = conversations.find((c) => c.id === activeId) ?? null;
   const messages = active?.messages ?? [];
   const started = messages.length > 0;
 
-  // --- Hydratation depuis le localStorage (évite le mismatch SSR) ---
+  // --- Chargement initial (utilisateur + conversations) ---
   useEffect(() => {
     setConfig(loadConfig());
-    let list = loadConversations();
-    if (list.length === 0) list = [newConversation()];
-    setConversations(list);
-    setActiveId(sortByRecent(list)[0].id);
-    setHydrated(true);
-  }, []);
 
-  // --- Persistance (debounced) ---
-  useEffect(() => {
-    if (!hydrated) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => saveConversations(conversations), 300);
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-    };
-  }, [conversations, hydrated]);
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.user && setEmail(d.user.email))
+      .catch(() => {});
+
+    fetchConversations()
+      .then((list) => {
+        if (list.length === 0) list = [newConversation()];
+        setConversations(list);
+        setActiveId(sortByRecent(list)[0].id);
+      })
+      .catch(() => {
+        const c = newConversation();
+        setConversations([c]);
+        setActiveId(c.id);
+      });
+  }, []);
 
   function updateConfig(next: ApiConfig) {
     setConfig(next);
@@ -63,7 +65,6 @@ export default function Chat() {
     logEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 
-  /** Met à jour une conversation précise par son id. */
   function patchConv(id: string, fn: (c: Conversation) => Conversation) {
     setConversations((prev) => prev.map((c) => (c.id === id ? fn(c) : c)));
   }
@@ -87,6 +88,12 @@ export default function Chat() {
     const next = remaining.length ? remaining : [newConversation()];
     setConversations(next);
     if (id === activeId) setActiveId(sortByRecent(next)[0].id);
+    deleteConversationApi(id).catch(() => {});
+  }
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    window.location.assign("/login");
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -94,7 +101,6 @@ export default function Chat() {
     const text = input.trim();
     if (!text || busy) return;
 
-    // garantit une conversation active
     let conv = active;
     if (!conv) {
       conv = newConversation();
@@ -147,13 +153,20 @@ export default function Chat() {
       });
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      patchConv(convId, (c) => {
-        const msgs = [...c.messages];
-        const m = msgs[assistantIndex];
-        if (m) msgs[assistantIndex] = { ...m, streaming: false };
-        return { ...c, messages: msgs };
-      });
       setBusy(false);
+      // fige le flag streaming et persiste la conversation côté serveur
+      setConversations((prev) => {
+        const next = prev.map((c) => {
+          if (c.id !== convId) return c;
+          const msgs = c.messages.map((m, i) =>
+            i === assistantIndex ? { ...m, streaming: false } : m
+          );
+          return { ...c, messages: msgs };
+        });
+        const toSave = next.find((c) => c.id === convId);
+        if (toSave) upsertConversation(toSave).catch(() => {});
+        return next;
+      });
     }
   }
 
@@ -179,6 +192,10 @@ export default function Chat() {
             </span>
             <button className="navbtn" onClick={() => setShowSettings(true)}>
               ⚙ Réglages
+            </button>
+            {email && <span className="masthead__user">{email}</span>}
+            <button className="navbtn" onClick={handleLogout} title="Déconnexion">
+              Déconnexion
             </button>
           </nav>
         </div>

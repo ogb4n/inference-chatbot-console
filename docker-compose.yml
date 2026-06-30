@@ -16,10 +16,20 @@ services:
       - INFERENCE_BASE_URL=${INFERENCE_BASE_URL:-http://host.docker.internal:11434}
       # Clé d'API envoyée en header X-API-Key (gardée côté serveur).
       - INFERENCE_API_KEY=${INFERENCE_API_KEY:-}
+      # --- Authentification ---
+      # Secret de signature des sessions JWT (OBLIGATOIRE en prod).
+      # Génère-le : openssl rand -hex 32
+      - AUTH_SECRET=${AUTH_SECRET:-}
+      # Chemin de la base SQLite (dans le volume persistant).
+      - DATABASE_PATH=/app/data/app.db
+      # true seulement derrière HTTPS (sinon le cookie ne passe pas en HTTP).
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
     # Permet au conteneur d'atteindre le port 11434 publié sur l'hôte
     # via l'alias "host.docker.internal".
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - app-data:/app/data
     restart: unless-stopped
 
 # ------------------------------------------------------------------
@@ -52,5 +62,7 @@ services:
   #     - ollama:/root/.ollama
   #   restart: unless-stopped
 
+volumes:
+  app-data:
 # volumes:
 #   ollama:
