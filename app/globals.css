@@ -330,6 +330,20 @@ body {
 .settings__close:hover {
   color: var(--accent);
 }
+.settings__note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--grey);
+  margin: 0;
+  padding: 12px;
+  background: var(--paper-2);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+}
+.settings__note code {
+  color: var(--ink);
+  font-size: 12px;
+}
 .settings__presets {
   display: flex;
   gap: 8px;

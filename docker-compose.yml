@@ -10,12 +10,33 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-    # Permet au navigateur servi par le conteneur de rester sur localhost,
-    # et au conteneur d'atteindre les serveurs d'inférence de la machine hôte
-    # via l'alias "host.docker.internal" (Ollama, Triton, serveur maison).
+      # --- Serveur d'inférence (lu par le proxy Next /api/chat) ---
+      # URL du serveur d'inférence vue DEPUIS LE CONTENEUR.
+      # host.docker.internal = la machine hôte (port publié 11434 -> Caddy).
+      - INFERENCE_BASE_URL=${INFERENCE_BASE_URL:-http://host.docker.internal:11434}
+      # Clé d'API envoyée en header X-API-Key (gardée côté serveur).
+      - INFERENCE_API_KEY=${INFERENCE_API_KEY:-}
+    # Permet au conteneur d'atteindre le port 11434 publié sur l'hôte
+    # via l'alias "host.docker.internal".
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
+
+# ------------------------------------------------------------------
+# ALTERNATIVE réseau (si host.docker.internal ne passe pas) :
+# rattacher ce service au réseau de la stack Ollama/Caddy et viser
+# directement le service Caddy.
+#   1) décommenter le bloc "networks" en bas + l'ajout réseau ci-dessous
+#   2) mettre INFERENCE_BASE_URL=http://caddy:8080
+#
+#    networks:
+#      - default
+#      - vps_default
+#
+# networks:
+#   vps_default:
+#     external: true
+# ------------------------------------------------------------------
 
   # ------------------------------------------------------------------
   # Optionnel : décommenter pour lancer Ollama à côté de l'interface.

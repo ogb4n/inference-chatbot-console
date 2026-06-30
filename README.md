@@ -26,9 +26,10 @@ réel** (streaming), réglages configurables directement depuis l'interface.
 - 🔌 Deux protocoles supportés :
   - **Ollama natif** (`/api/chat`, NDJSON)
   - **OpenAI-compatible** (`/v1/chat/completions`, SSE) — Triton, serveur maison…
-- ⚙️ **Panneau de réglages** dans l'UI (provider, URL, modèle, clé API, streaming)
-  - Presets **Ollama** / **Triton** en un clic
-  - Test de connexion + détection automatique des modèles disponibles
+- 🛡️ **Proxy serveur intégré** (`/api/chat`) : pas de CORS, clé d'API gardée
+  côté serveur (jamais exposée au navigateur), injection du header `X-API-Key`
+- ⚙️ **Panneau de réglages** dans l'UI (protocole, modèle, streaming)
+  - Détection automatique des modèles disponibles
   - Configuration persistée (localStorage)
 - 🐳 Dockerisé, prêt à déployer
 
@@ -61,23 +62,43 @@ docker compose down
 
 ---
 
-## Brancher le serveur d'inférence
+## Architecture (proxy serveur)
 
-Tout se configure depuis l'interface via le bouton **⚙ Réglages** — aucun
-changement de code requis.
+```
+Navigateur ──► /api/chat (même origine, Next.js)  ──►  serveur d'inférence
+                 │ ajoute X-API-Key                     (Ollama / Triton / maison)
+                 │ relaie le flux
+```
 
-| Serveur | Protocole | URL |
+Le navigateur n'appelle **jamais** directement le serveur d'inférence : il passe
+par le proxy `/api/chat` servi par Next.js (même origine). Avantages :
+
+- **Pas de CORS** (même origine).
+- **Clé d'API jamais exposée** au navigateur — injectée côté serveur en header
+  `X-API-Key`.
+- Fonctionne derrière un reverse-proxy d'authentification (ex. Caddy + clé).
+
+### Configuration
+
+L'URL et la clé du serveur sont des **variables d'environnement serveur**
+(`.env`, lu par docker compose) :
+
+| Variable | Description | Exemple |
 |---|---|---|
-| **Ollama** | Ollama (natif) | `http://localhost:11434` |
-| **Triton** | OpenAI-compatible | `http://localhost:8000` |
-| **Serveur maison** | OpenAI-compatible | URL fournie par l'équipe INFRA |
+| `INFERENCE_BASE_URL` | URL du serveur **vue depuis le conteneur** | `http://host.docker.internal:11434` |
+| `INFERENCE_API_KEY` | Clé envoyée en header `X-API-Key` | `clef-equipe-devweb` |
 
-**Workflow :** ⚙ Réglages → choisir un preset (ou saisir l'URL) → *Tester la
-connexion* → sélectionner le modèle → *Enregistrer* → discuter.
+Le **protocole** (Ollama / OpenAI) et le **modèle** se choisissent dans l'UI via
+**⚙ Réglages** (avec détection automatique des modèles disponibles).
 
-> ℹ️ Les requêtes vers le modèle partent du **navigateur**. `localhost` y
-> désigne donc votre machine, ce qui fonctionne directement quand Ollama/Triton
-> tournent en local — même si l'interface est lancée via Docker.
+```bash
+cp .env.example .env      # puis renseigner INFERENCE_BASE_URL et INFERENCE_API_KEY
+docker compose up -d --build
+```
+
+> ℹ️ `host.docker.internal` permet au conteneur d'atteindre un port publié sur la
+> machine hôte. Si ça ne passe pas, voir le bloc « ALTERNATIVE réseau » commenté
+> dans `docker-compose.yml` (rattachement direct au réseau de la stack Ollama).
 
 ---
 
@@ -85,18 +106,22 @@ connexion* → sélectionner le modèle → *Enregistrer* → discuter.
 
 ```
 app/
+  api/
+    chat/route.ts   # PROXY serveur : injecte X-API-Key, relaie le flux
+    models/route.ts # proxy liste des modèles
   layout.tsx        # layout racine + polices + métadonnées
   page.tsx          # point d'entrée
   globals.css       # design system (CSS maison)
 components/
   Chat.tsx          # chat, navbar, état de la conversation
-  Settings.tsx      # panneau de configuration du serveur
+  Settings.tsx      # panneau de configuration (protocole / modèle)
 lib/
-  api.ts            # couche API (streaming SSE OpenAI + NDJSON Ollama)
-  config.ts         # types, presets, persistance de la config
+  api.ts            # couche API client (parse SSE OpenAI + NDJSON Ollama)
+  config.ts         # types + persistance de la config UI
   types.ts          # types partagés
 Dockerfile          # build multi-étapes (Next.js standalone)
 docker-compose.yml  # service web (+ Ollama optionnel)
+.env.example        # variables serveur (URL + clé d'API)
 ```
 
 ---

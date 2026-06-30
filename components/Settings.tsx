@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  type ApiConfig,
-  type Provider,
-  PRESETS,
-  resolveEndpoint,
-} from "@/lib/config";
+import { type ApiConfig, type Provider } from "@/lib/config";
 import { listModels } from "@/lib/api";
 
 interface Props {
@@ -27,10 +22,6 @@ export default function Settings({ config, onChange, onClose }: Props) {
     setDraft((d) => ({ ...d, [key]: value }));
   }
 
-  function applyPreset(partial: Partial<ApiConfig>) {
-    setDraft((d) => ({ ...d, ...partial }));
-  }
-
   async function probe() {
     setProbing(true);
     setProbeMsg("");
@@ -40,7 +31,7 @@ export default function Settings({ config, onChange, onClose }: Props) {
     setProbeMsg(
       found.length
         ? `${found.length} modèle(s) détecté(s).`
-        : "Connexion impossible ou liste de modèles indisponible."
+        : "Aucun modèle détecté (vérifie la config serveur INFERENCE_BASE_URL / INFERENCE_API_KEY)."
     );
     setProbing(false);
   }
@@ -54,24 +45,18 @@ export default function Settings({ config, onChange, onClose }: Props) {
     <div className="settings__backdrop" onClick={onClose}>
       <aside className="settings" onClick={(e) => e.stopPropagation()}>
         <div className="settings__head">
-          <h2 className="settings__title">Serveur d&apos;inférence</h2>
+          <h2 className="settings__title">Modèle &amp; protocole</h2>
           <button className="settings__close" onClick={onClose} aria-label="Fermer">
             ×
           </button>
         </div>
 
-        <div className="settings__presets">
-          {PRESETS.map((p) => (
-            <button
-              key={p.label}
-              type="button"
-              className="settings__preset"
-              onClick={() => applyPreset(p.config)}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <p className="settings__note">
+          L&apos;URL du serveur et la clé d&apos;API sont configurées côté serveur
+          (variables <code>INFERENCE_BASE_URL</code> /{" "}
+          <code>INFERENCE_API_KEY</code>). Les appels passent par le proxy{" "}
+          <code>/api/chat</code> — aucune clé n&apos;est exposée au navigateur.
+        </p>
 
         <label className="settings__field">
           <span>Protocole</span>
@@ -85,22 +70,12 @@ export default function Settings({ config, onChange, onClose }: Props) {
         </label>
 
         <label className="settings__field">
-          <span>URL du serveur</span>
-          <input
-            type="text"
-            value={draft.baseUrl}
-            onChange={(e) => set("baseUrl", e.target.value)}
-            placeholder="http://localhost:11434"
-          />
-        </label>
-
-        <label className="settings__field">
           <span>Modèle</span>
           <input
             type="text"
             value={draft.model}
             onChange={(e) => set("model", e.target.value)}
-            placeholder="llama3"
+            placeholder="phi3.5"
             list="model-options"
           />
           <datalist id="model-options">
@@ -108,16 +83,6 @@ export default function Settings({ config, onChange, onClose }: Props) {
               <option key={m} value={m} />
             ))}
           </datalist>
-        </label>
-
-        <label className="settings__field">
-          <span>Clé API (optionnelle)</span>
-          <input
-            type="password"
-            value={draft.apiKey}
-            onChange={(e) => set("apiKey", e.target.value)}
-            placeholder="vide pour Ollama / Triton local"
-          />
         </label>
 
         <label className="settings__check">
@@ -129,10 +94,6 @@ export default function Settings({ config, onChange, onClose }: Props) {
           <span>Réponse en streaming (mot à mot)</span>
         </label>
 
-        <p className="settings__endpoint">
-          Endpoint : <code>{resolveEndpoint(draft)}</code>
-        </p>
-
         <div className="settings__actions">
           <button
             type="button"
@@ -140,7 +101,7 @@ export default function Settings({ config, onChange, onClose }: Props) {
             onClick={probe}
             disabled={probing}
           >
-            {probing ? "Test…" : "Tester la connexion"}
+            {probing ? "Test…" : "Détecter les modèles"}
           </button>
           <button type="button" className="btn btn--primary" onClick={save}>
             Enregistrer

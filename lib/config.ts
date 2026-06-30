@@ -1,56 +1,29 @@
 /* =====================================================================
- *  CONFIGURATION DU SERVEUR D'INFÉRENCE
+ *  CONFIGURATION CLIENT (interface)
  * =====================================================================
- *  Modifiable directement depuis l'interface (panneau Réglages) et
- *  persistée dans le localStorage. Aucun changement de code requis
- *  pour brancher le serveur fourni par l'équipe INFRA.
+ *  L'URL du serveur d'inférence et la clé d'API sont gérées CÔTÉ SERVEUR
+ *  (variables d'environnement INFERENCE_BASE_URL / INFERENCE_API_KEY,
+ *  voir app/api/chat/route.ts). Le navigateur ne voit que ces réglages.
  * ===================================================================== */
 
 /** Format de l'API exposée par le serveur d'inférence. */
 export type Provider = "openai" | "ollama";
 
 export interface ApiConfig {
-  /** "openai" = endpoint OpenAI-compatible (Triton, Ollama /v1, serveur maison)
-   *  "ollama" = API native Ollama (/api/chat) */
+  /** "ollama" = /api/chat (NDJSON) — "openai" = /v1/chat/completions (SSE) */
   provider: Provider;
-  /** URL de base du serveur, sans le chemin (ex: http://localhost:11434) */
-  baseUrl: string;
-  /** Nom du modèle à interroger (ex: llama3, mistral, ...) */
+  /** Nom du modèle à interroger (ex: phi3.5, llama3, mistral, ...) */
   model: string;
-  /** Clé API optionnelle (Bearer) — vide pour Ollama/Triton en local */
-  apiKey: string;
   /** Affichage progressif token par token */
   stream: boolean;
 }
 
-/** Réglages par défaut (Ollama local). */
+/** Réglages par défaut. */
 export const DEFAULT_CONFIG: ApiConfig = {
   provider: "ollama",
-  baseUrl: "http://localhost:11434",
-  model: "llama3",
-  apiKey: "",
+  model: "phi3.5",
   stream: true,
 };
-
-/** Presets rapides correspondant aux serveurs proposés par l'équipe INFRA. */
-export const PRESETS: { label: string; config: Partial<ApiConfig> }[] = [
-  {
-    label: "Ollama",
-    config: { provider: "ollama", baseUrl: "http://localhost:11434" },
-  },
-  {
-    label: "Triton",
-    config: { provider: "openai", baseUrl: "http://localhost:8000" },
-  },
-];
-
-/** Construit l'URL complète de l'endpoint selon le provider. */
-export function resolveEndpoint(config: ApiConfig): string {
-  const base = config.baseUrl.replace(/\/+$/, "");
-  return config.provider === "ollama"
-    ? `${base}/api/chat`
-    : `${base}/v1/chat/completions`;
-}
 
 const STORAGE_KEY = "inference-console-config";
 

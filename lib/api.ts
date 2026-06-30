@@ -1,23 +1,18 @@
 import type { ChatMessage } from "./types";
-import { type ApiConfig, resolveEndpoint } from "./config";
+import type { ApiConfig } from "./config";
 
 /* =====================================================================
- *  COUCHE API — intégration temps réel avec le serveur d'inférence
+ *  COUCHE API (client) — passe par le proxy Next /api/*
  * =====================================================================
- *  Supporte deux protocoles :
- *   - "openai"  : OpenAI Chat Completions, streaming SSE (`data: ...`)
- *                 → Triton, Ollama (/v1), serveur maison compatible
- *   - "ollama"  : API native Ollama (/api/chat), streaming NDJSON
+ *  Le navigateur appelle toujours la même origine ("/api/chat"), ce qui
+ *  évite tout problème de CORS. C'est le serveur Next qui ajoute la clé
+ *  d'API et relaie vers le serveur d'inférence (cf. app/api/chat/route.ts).
+ *  Le flux est renvoyé brut : on le parse ici selon le provider.
  * ===================================================================== */
 
 /**
- * Envoie la conversation au serveur d'inférence et renvoie la réponse
- * complète. En streaming, `onToken` est appelé à chaque fragment reçu.
- *
- * @param config    réglages du serveur (provider, url, modèle, clé)
- * @param messages  historique complet (rôle + contenu)
- * @param onToken   callback appelé à chaque fragment en streaming
- * @param signal    AbortSignal optionnel pour annuler la requête
+ * Envoie la conversation et renvoie la réponse complète. En streaming,
+ * `onToken` est appelé à chaque fragment reçu.
  */
 export async function callApi(
   config: ApiConfig,
@@ -25,16 +20,12 @@ export async function callApi(
   onToken?: (chunk: string) => void,
   signal?: AbortSignal
 ): Promise<string> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (config.apiKey) headers["Authorization"] = `Bearer ${config.apiKey}`;
-
-  const res = await fetch(resolveEndpoint(config), {
+  const res = await fetch("/api/chat", {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     signal,
     body: JSON.stringify({
+      provider: config.provider,
       model: config.model,
       messages,
       stream: config.stream,
@@ -43,7 +34,7 @@ export async function callApi(
 
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`API ${res.status} ${res.statusText} ${detail}`.trim());
+    throw new Error(`Erreur ${res.status} — ${detail || res.statusText}`.trim());
   }
 
   // ----- Mode non-streaming -----
@@ -107,18 +98,12 @@ export async function callApi(
 }
 
 /**
- * Liste les modèles disponibles sur le serveur (best-effort).
- * Renvoie une liste vide si l'endpoint n'est pas supporté.
+ * Liste les modèles disponibles via le proxy (best-effort).
+ * Renvoie une liste vide si indisponible.
  */
 export async function listModels(config: ApiConfig): Promise<string[]> {
-  const base = config.baseUrl.replace(/\/+$/, "");
-  const url =
-    config.provider === "ollama" ? `${base}/api/tags` : `${base}/v1/models`;
-  const headers: Record<string, string> = {};
-  if (config.apiKey) headers["Authorization"] = `Bearer ${config.apiKey}`;
-
   try {
-    const res = await fetch(url, { headers });
+    const res = await fetch(`/api/models?provider=${config.provider}`);
     if (!res.ok) return [];
     const data = await res.json();
     if (config.provider === "ollama") {

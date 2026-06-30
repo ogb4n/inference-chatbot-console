@@ -75,7 +75,7 @@ export default function Chat() {
         copy[assistantIndex] = {
           role: "assistant",
           content:
-            "⚠️ Impossible de joindre le serveur d'inférence. Vérifie les réglages (⚙).",
+            "⚠️ Impossible de joindre le serveur d'inférence. Vérifie la config serveur (INFERENCE_BASE_URL / INFERENCE_API_KEY) et le modèle.",
         };
         return copy;
       });
@@ -125,8 +125,8 @@ export default function Chat() {
             <h1 className="headline">Testez votre modèle.</h1>
             <p className="subhead">
               Interface de chat connectée en temps réel au serveur d&apos;inférence
-              ({config.provider === "ollama" ? "Ollama" : "OpenAI-compatible"} —{" "}
-              <code>{config.baseUrl}</code>).
+              (protocole {config.provider === "ollama" ? "Ollama" : "OpenAI-compatible"},
+              modèle <code>{config.model}</code>).
             </p>
           </section>
         )}
