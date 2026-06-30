@@ -22,6 +22,8 @@ réel** (streaming), réglages configurables directement depuis l'interface.
 ## Fonctionnalités
 
 - 💬 Interface de chat épurée et responsive
+- 🗂️ **Historique multi-conversations** : barre latérale pour créer, reprendre
+  et supprimer des conversations (persistées en localStorage, titre auto)
 - ⚡ **Streaming temps réel** des réponses (token par token)
 - 🔌 Deux protocoles supportés :
   - **Ollama natif** (`/api/chat`, NDJSON)
@@ -113,11 +115,13 @@ app/
   page.tsx          # point d'entrée
   globals.css       # design system (CSS maison)
 components/
-  Chat.tsx          # chat, navbar, état de la conversation
+  Chat.tsx          # chat, navbar, gestion des conversations
+  Sidebar.tsx       # liste des conversations (créer / sélectionner / supprimer)
   Settings.tsx      # panneau de configuration (protocole / modèle)
 lib/
   api.ts            # couche API client (parse SSE OpenAI + NDJSON Ollama)
   config.ts         # types + persistance de la config UI
+  conversations.ts  # stockage des conversations (localStorage)
   types.ts          # types partagés
 Dockerfile          # build multi-étapes (Next.js standalone)
 docker-compose.yml  # service web (+ Ollama optionnel)
