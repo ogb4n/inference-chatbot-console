@@ -1,0 +1,35 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: inference-console:latest
+    container_name: inference-console
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    # Permet au navigateur servi par le conteneur de rester sur localhost,
+    # et au conteneur d'atteindre les serveurs d'inférence de la machine hôte
+    # via l'alias "host.docker.internal" (Ollama, Triton, serveur maison).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------
+  # Optionnel : décommenter pour lancer Ollama à côté de l'interface.
+  # Dans les Réglages (⚙), utiliser alors l'URL http://localhost:11434
+  # (l'appel part du navigateur, donc "localhost" = votre machine).
+  # ------------------------------------------------------------------
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama:/root/.ollama
+  #   restart: unless-stopped
+
+# volumes:
+#   ollama:

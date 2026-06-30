@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+npm-debug.log*
+.git
+.gitignore
+.env*.local
+Dockerfile
+docker-compose.yml
+.dockerignore
+README*.md
+*.tsbuildinfo
+.DS_Store
